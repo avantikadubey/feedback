@@ -1,6 +1,6 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import { makeStyles } from "@material-ui/core/styles";
-import platform from 'platform';
+import platform from "platform";
 import {
   CircularProgress,
   Grid,
@@ -24,7 +24,7 @@ const useStyles = makeStyles((theme) => ({
   img: {
     margin: "auto",
     display: "block",
-    maxWidth: "60%",
+    maxWidth: "58%",
     borderStyle: "ridge",
   },
   MuiDialog: {
@@ -33,22 +33,31 @@ const useStyles = makeStyles((theme) => ({
     },
   },
   alignSpinner: {
-    display: 'flex',
-    justifyContent: 'center',
+    display: "flex",
+    justifyContent: "center",
   },
 }));
 
 const FeedBackModal = (props) => {
   const classes = useStyles();
   const { openModal, handleClose } = props;
-  const [screenshotCanvasSource, setScreenshotCanvasSource] = useState(null);
-  const [selectedRadio, setSelectedRadio] = useState('Defect');
-  const [feedbackData, setFeedbackData] = useState(null); 
-  const [textArea, setTextArea] = useState();
   const screenshotAp = useRef(null);
   let screenshotEle = "";
+  const intialUser = useMemo(() => ({
+    screenshotCanvasSource: null,
+    selectedRadio: "Defect",
+    feedbackData: null,
+    textArea: "",
+    browser_details: platform.name + platform.version,
+    os_details:
+      platform.os.family + platform.os.architecture + platform.os.version,
+    from:
+      localStorage.metaData && JSON.parse(localStorage.metaData).username
+        ? JSON.parse(localStorage.metaData).username
+        : "mhussai4",
+  }));
+  const [formFields, setFormFields] = useState(intialUser);
 
-  console.log('platform', platform);
   useEffect(() => {
     console.log("222");
     initScreenshotCanvas();
@@ -84,9 +93,12 @@ const FeedBackModal = (props) => {
   };
 
   const setScreenshot = () => {
-    let canvas = screenshotCanvasSource;
+    let canvas = formFields.screenshotCanvasSource;
     console.log("canvas", canvas);
-    setFeedbackData(canvas.toDataURL("image/png").match(/base64,(.+)$/)[1]);
+    setFormFields({
+      ...formFields,
+      feedbackData: canvas.toDataURL("image/png").match(/base64,(.+)$/)[1],
+    });
     screenshotEle = getImgEle(canvas);
     //console.log('canvas', canvas);
     //console.log('screenshotEle', screenshotEle);
@@ -106,7 +118,7 @@ const FeedBackModal = (props) => {
           x: document.documentElement.scrollLeft,
           y: document.documentElement.scrollTop,
         }).then((bodyCanvas) => {
-          setScreenshotCanvasSource(bodyCanvas);
+          setFormFields({ ...formFields, screenshotCanvasSource: bodyCanvas });
         });
       }, 1000);
     }
@@ -116,20 +128,24 @@ const FeedBackModal = (props) => {
   };
 
   useEffect(() => {
-    if (screenshotCanvasSource) {
+    if (formFields.screenshotCanvasSource) {
       setScreenshot();
     }
-  }, [screenshotCanvasSource]);
+  }, [formFields.screenshotCanvasSource]);
 
-  const onRadioChange = (e)=> {
-    setSelectedRadio(e.target.value);
-}
+  const onRadioChange = (e) => {
+    setFormFields({ ...formFields, selectedRadio: e.target.value });
+  };
 
-const onTextChange = (e)=> {
-    setTextArea(e.target.value);
-}
+  const onTextChange = (e) => {
+    setFormFields({ ...formFields, textArea: e.target.value });
+  };
 
-  console.log("screenshotCanvasSource1", screenshotCanvasSource);
+  const submitFeedback = () =>{
+    console.log('formFields', formFields);
+  }
+
+  console.log("screenshotCanvasSource1", formFields.screenshotCanvasSource);
   return (
     <div>
       <Dialog
@@ -143,17 +159,13 @@ const onTextChange = (e)=> {
           <DialogContentText>
             *Please click here for the existing feedback/defect
           </DialogContentText>
-          <input type="hidden" name="data" value={feedbackData} />
-          <input type="hidden" name="from" value={ localStorage.metaData && JSON.parse(localStorage.metaData).username ? JSON.parse(localStorage.metaData).username : 'mhussai4'} />
-          <input type="hidden" name="browser_details" value={`${platform.name}(${platform.version})`} />
-          <input type="hidden" name="os_details" value={`${platform.os.family}${platform.os.architecture}(${platform.os.version})`} />
           <TextareaAutosize
             aria-label="minimum height"
             rowsMin={5}
             className={classes.textarea}
             placeholder="Describe your issue or share your ideas"
-            value={textArea}
-            onChange={(e)=> onTextChange(e)}
+            value={formFields.textArea}
+            onChange={(e) => onTextChange(e)}
           />
           <RadioGroup
             row
@@ -165,28 +177,30 @@ const onTextChange = (e)=> {
               control={<Radio color="primary" />}
               label="Defect"
               value="Defect"
-              checked={ selectedRadio === 'Defect' }
-              onChange={(e)=> onRadioChange(e)}
+              checked={formFields.selectedRadio === "Defect"}
+              onChange={(e) => onRadioChange(e)}
             />
             <FormControlLabel
               control={<Radio color="primary" />}
               label="Task"
               value="Task"
-              checked={ selectedRadio === 'Task' }
-              onChange={(e)=> onRadioChange(e)}
+              checked={formFields.selectedRadio === "Task"}
+              onChange={(e) => onRadioChange(e)}
             />
           </RadioGroup>
-          {screenshotCanvasSource ? (
+          {formFields.screenshotCanvasSource ? (
             <Grid item ref={screenshotAp} className={classes.img} />
           ) : (
-            <div className={classes.alignSpinner}><CircularProgress color="inherit" size="15px"/></div>
+            <div className={classes.alignSpinner}>
+              <CircularProgress color="inherit" size="15px" />
+            </div>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose} color="primary">
             Cancel
           </Button>
-          <Button onClick={handleClose} color="primary">
+          <Button onClick={()=>submitFeedback()} color="primary">
             Send
           </Button>
         </DialogActions>
